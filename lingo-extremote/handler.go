@@ -56,22 +56,22 @@ func getPlayerStatus(connection *dbus.Conn, playerPath dbus.ObjectPath) (string,
 }
 
 func HandleExtRemote(req *ipod.Command, tr ipod.CommandWriter, dev DeviceExtRemote) error {
-	conn, err := dbus.SystemBus()
-	if err != nil {
-		panic(err)
-	}
-	var objects map[dbus.ObjectPath]map[string]map[string]dbus.Variant
-	conn.Object("org.bluez", "/").Call("org.freedesktop.DBus.ObjectManager.GetManagedObjects", 0).Store(&objects)
-
 	var playerPath dbus.ObjectPath
-	for path, obj := range objects {
-		for inter := range obj {
-			if inter == "org.bluez.MediaPlayer1" {
-				playerPath = path
-				break
+	conn, err := dbus.SystemBus()
+	if err == nil {
+		var objects map[dbus.ObjectPath]map[string]map[string]dbus.Variant
+		conn.Object("org.bluez", "/").Call("org.freedesktop.DBus.ObjectManager.GetManagedObjects", 0).Store(&objects)
+
+		for path, obj := range objects {
+			for inter := range obj {
+				if inter == "org.bluez.MediaPlayer1" {
+					playerPath = path
+					break
+				}
 			}
 		}
 	}
+
 	log.Printf("playerPath: %v", playerPath)
 
 	//log.Printf("Req: %#v", req)
