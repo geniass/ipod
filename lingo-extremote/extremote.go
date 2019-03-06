@@ -301,9 +301,10 @@ const (
 )
 
 type ReturnPlayStatus struct {
+	State         PlayerState
+	TrackIndex    uint32
 	TrackLength   uint32
 	TrackPosition uint32
-	State         PlayerState
 }
 
 type GetCurrentPlayingTrackIndex struct {

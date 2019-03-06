@@ -114,11 +114,14 @@ func HandleExtRemote(req *ipod.Command, tr ipod.CommandWriter, dev DeviceExtRemo
 				PacketIndex: 0,
 				Text:        0x00,
 			}
+		case TrackInfoGenre:
+			info = ipod.StringToBytes("Genre")
+		case TrackInfoComposer:
+			info = ipod.StringToBytes("Composer")
 		case TrackInfoArtworkCount:
 			info = struct{}{}
 		default:
-			info = []byte{0x00}
-
+			info = ipod.StringToBytes("WAT")
 		}
 		ipod.Respond(req, tr, &ReturnIndexedPlayingTrackInfo{
 			InfoType: msg.InfoType,
@@ -136,28 +139,70 @@ func HandleExtRemote(req *ipod.Command, tr ipod.CommandWriter, dev DeviceExtRemo
 	case *SelectDBRecord:
 		ipod.Respond(req, tr, ackSuccess(req))
 	case *GetNumberCategorizedDBRecords:
-		ipod.Respond(req, tr, &ReturnNumberCategorizedDBRecords{
-			RecordCount: 1,
-		})
+		switch msg.CategoryType {
+		case DbCategoryTrack:
+			ipod.Respond(req, tr, &ReturnNumberCategorizedDBRecords{
+				RecordCount: 10,
+			})
+		default:
+			ipod.Respond(req, tr, &ReturnNumberCategorizedDBRecords{
+				RecordCount: 0,
+			})
+		}
 	case *RetrieveCategorizedDatabaseRecords:
+		if msg.CategoryType == DbCategoryTrack {
+			var arr [16]byte
+			copy(arr[:], ipod.StringToBytes(fmt.Sprintf("Track %d", msg.Offset)))
+			ipod.Respond(req, tr, &ReturnCategorizedDatabaseRecord{msg.Offset, arr})
+			return nil
+		}
 		ipod.Respond(req, tr, &ReturnCategorizedDatabaseRecord{})
 	case *GetPlayStatus:
+		var state PlayerState
+		status, err := getPlayerStatus(conn, playerPath)
+		if err != nil {
+			log.Printf("ERROR: getting play status from dbus: " + err.Error())
+			state = PlayerStateStopped
+		} else {
+			log.Printf("play status from dbus: " + status)
+			switch status {
+			case "playing":
+				state = PlayerStatePlaying
+			default:
+				state = PlayerStatePaused
+			}
+		}
 		ipod.Respond(req, tr, &ReturnPlayStatus{
+			State:         state,
+			TrackIndex:    0,
 			TrackLength:   300 * 1000,
 			TrackPosition: 20 * 1000,
-			State:         PlayerStatePlaying,
 		})
 	case *GetCurrentPlayingTrackIndex:
 		ipod.Respond(req, tr, &ReturnCurrentPlayingTrackIndex{
 			TrackIndex: 0,
 		})
 	case *GetIndexedPlayingTrackTitle:
+		var title string
+		track, err := getTrackMetadata(conn, playerPath)
+		if err != nil {
+			title = err.Error()
+		} else {
+			title = track["title"].(string)
+		}
 		ipod.Respond(req, tr, &ReturnIndexedPlayingTrackTitle{
-			Title: ipod.StringToBytes("title"),
+			Title: ipod.StringToBytes(title),
 		})
 	case *GetIndexedPlayingTrackArtistName:
+		var artist string
+		track, err := getTrackMetadata(conn, playerPath)
+		if err != nil {
+			artist = err.Error()
+		} else {
+			artist = track["artist"].(string)
+		}
 		ipod.Respond(req, tr, &ReturnIndexedPlayingTrackArtistName{
-			ArtistName: ipod.StringToBytes("artist"),
+			ArtistName: ipod.StringToBytes(artist),
 		})
 	case *GetIndexedPlayingTrackAlbumName:
 		ipod.Respond(req, tr, &ReturnIndexedPlayingTrackAlbumName{
@@ -275,9 +320,15 @@ func HandleExtRemote(req *ipod.Command, tr ipod.CommandWriter, dev DeviceExtRemo
 			PixelFormat: 0x01,
 		})
 	case *GetNumPlayingTracks:
-		ipod.Respond(req, tr, &ReturnNumPlayingTracks{
-			NumTracks: 1,
-		})
+		if playerPath != "" {
+			ipod.Respond(req, tr, &ReturnNumPlayingTracks{
+				NumTracks: 10,
+			})
+		} else {
+			ipod.Respond(req, tr, &ReturnNumPlayingTracks{
+				NumTracks: 0,
+			})
+		}
 	case *SetCurrentPlayingTrack:
 	case *SelectSortDBRecord:
 	case *GetColorDisplayImageLimits:
@@ -287,7 +338,12 @@ func HandleExtRemote(req *ipod.Command, tr ipod.CommandWriter, dev DeviceExtRemo
 			PixelFormat: 0x01,
 		})
 	case *ResetDBSelectionHierarchy:
-		ipod.Respond(req, tr, &ACK{Status: ACKStatusFailed, CmdID: req.ID.CmdID()})
+		switch msg.Selection {
+		case 1:
+			ipod.Respond(req, tr, &ACK{Status: ACKStatusSuccess, CmdID: req.ID.CmdID()})
+		default:
+			ipod.Respond(req, tr, &ACK{Status: ACKStatusFailed, CmdID: req.ID.CmdID()})
+		}
 
 	case *GetDBiTunesInfo:
 	// RetDBiTunesInfo:
