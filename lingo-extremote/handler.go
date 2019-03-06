@@ -108,18 +108,24 @@ func HandleExtRemote(req *ipod.Command, tr ipod.CommandWriter, dev DeviceExtRemo
 				TrackLength:  300 * 1000,
 				ChapterCount: 0,
 			}
-		case TrackInfoDescription, TrackInfoLyrics:
+		case TrackInfoArtistName:
+			info = ipod.StringToBytes("GetIndexedPlayingTrackInfo ArtistName")
+		case TrackInfoAlbum:
+			info = ipod.StringToBytes("GetIndexedPlayingTrackInfo Album")
+		case TrackInfoGenre:
+			info = ipod.StringToBytes("GetIndexedPlayingTrackInfo Genre")
+		case TrackInfoTitle:
+			info = ipod.StringToBytes("GetIndexedPlayingTrackInfo Title")
+		case TrackInfoComposer:
+			info = ipod.StringToBytes("GetIndexedPlayingTrackInfo Composer")
+		case TrackInfoArtworkCount:
+			info = struct{}{}
+		case TrackInfoLyrics:
 			info = &TrackLongText{
 				Flags:       0x0,
 				PacketIndex: 0,
 				Text:        0x00,
 			}
-		case TrackInfoGenre:
-			info = ipod.StringToBytes("Genre")
-		case TrackInfoComposer:
-			info = ipod.StringToBytes("Composer")
-		case TrackInfoArtworkCount:
-			info = struct{}{}
 		default:
 			info = ipod.StringToBytes("WAT")
 		}

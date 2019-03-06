@@ -128,13 +128,14 @@ type TrackInfoType byte
 
 const (
 	TrackInfoCaps         TrackInfoType = 0x00
-	TrackInfoPodcastName  TrackInfoType = 0x01
-	TrackInfoReleaseDate  TrackInfoType = 0x02
-	TrackInfoDescription  TrackInfoType = 0x03
-	TrackInfoLyrics       TrackInfoType = 0x04
-	TrackInfoGenre        TrackInfoType = 0x05
+	TrackInfoTimeOrName   TrackInfoType = 0x01
+	TrackInfoArtistName   TrackInfoType = 0x02
+	TrackInfoAlbum        TrackInfoType = 0x03
+	TrackInfoGenre        TrackInfoType = 0x04
+	TrackInfoTitle        TrackInfoType = 0x05
 	TrackInfoComposer     TrackInfoType = 0x06
-	TrackInfoArtworkCount TrackInfoType = 0x07
+	TrackInfoLyrics       TrackInfoType = 0x07
+	TrackInfoArtworkCount TrackInfoType = 0x08
 )
 
 type TrackCaps struct {
@@ -183,7 +184,7 @@ func (s *ReturnIndexedPlayingTrackInfo) UnmarshalBinary(data []byte) error {
 	switch s.InfoType {
 	case TrackInfoCaps:
 		s.Info = &TrackCaps{}
-	case TrackInfoDescription, TrackInfoLyrics:
+	case TrackInfoLyrics:
 		s.Info = &TrackLongText{}
 	default:
 		s.Info = &struct{}{}
