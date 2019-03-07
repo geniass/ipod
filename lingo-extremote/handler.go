@@ -36,7 +36,7 @@ func getTrackMetadata(connection *dbus.Conn, playerPath dbus.ObjectPath) (map[st
 
 	t, ok := track.Value().(map[string]dbus.Variant)
 	if ok {
-		return map[string]interface{}{"title": t["Title"].String(), "artist": t["Artist"].String()}, nil
+		return map[string]interface{}{"title": t["Title"].String(), "artist": t["Artist"].String(), "album": t["Album"].Value().(string)}, nil
 	}
 	return nil, errors.New("Could not coerce track to map")
 }
@@ -192,9 +192,11 @@ func HandleExtRemote(req *ipod.Command, tr ipod.CommandWriter, dev DeviceExtRemo
 		var title string
 		track, err := getTrackMetadata(conn, playerPath)
 		if err != nil {
+			log.Printf("ERROR: getting track title: %s", err.Error())
 			title = err.Error()
 		} else {
 			title = track["title"].(string)
+			log.Printf("got track title: %s", title)
 		}
 		ipod.Respond(req, tr, &ReturnIndexedPlayingTrackTitle{
 			Title: ipod.StringToBytes(title),
@@ -203,16 +205,27 @@ func HandleExtRemote(req *ipod.Command, tr ipod.CommandWriter, dev DeviceExtRemo
 		var artist string
 		track, err := getTrackMetadata(conn, playerPath)
 		if err != nil {
+			log.Printf("ERROR: getting track artist: %s", err.Error())
 			artist = err.Error()
 		} else {
 			artist = track["artist"].(string)
+			log.Printf("got track artist: %s", artist)
 		}
 		ipod.Respond(req, tr, &ReturnIndexedPlayingTrackArtistName{
 			ArtistName: ipod.StringToBytes(artist),
 		})
 	case *GetIndexedPlayingTrackAlbumName:
+		var album string
+		track, err := getTrackMetadata(conn, playerPath)
+		if err != nil {
+			log.Printf("ERROR: getting track album: %s", err.Error())
+			album = err.Error()
+		} else {
+			album = track["album"].(string)
+			log.Printf("got track album: %s", album)
+		}
 		ipod.Respond(req, tr, &ReturnIndexedPlayingTrackAlbumName{
-			AlbumName: ipod.StringToBytes("album"),
+			AlbumName: ipod.StringToBytes(album),
 		})
 	case *SetPlayStatusChangeNotification:
 		ipod.Respond(req, tr, ackSuccess(req))
