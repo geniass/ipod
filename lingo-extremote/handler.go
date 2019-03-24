@@ -186,13 +186,13 @@ func HandleExtRemote(req *ipod.Command, tr ipod.CommandWriter, dev DeviceExtRemo
 		})
 	case *GetCurrentPlayingTrackIndex:
 		if playerPath == "" {
-		ipod.Respond(req, tr, &ReturnCurrentPlayingTrackIndex{
+			ipod.Respond(req, tr, &ReturnCurrentPlayingTrackIndex{
 				TrackIndex: -1,
 			})
 		} else {
 			ipod.Respond(req, tr, &ReturnCurrentPlayingTrackIndex{
-			TrackIndex: 0,
-		})
+				TrackIndex: 0,
+			})
 		}
 	case *GetIndexedPlayingTrackTitle:
 		var title string
@@ -240,90 +240,89 @@ func HandleExtRemote(req *ipod.Command, tr ipod.CommandWriter, dev DeviceExtRemo
 	case *PlayCurrentSelection:
 		ipod.Respond(req, tr, ackSuccess(req))
 	case *PlayControl:
+		if playerPath == "" {
+			break
+		}
+
 		payload := req.Payload.(*PlayControl)
+		var err error
+
 		switch payload.Cmd {
 		case PlayControlToggle:
 			status, err := getPlayerStatus(conn, playerPath)
 			log.Printf("Play status from dbus: " + status)
 			if err != nil {
 				log.Printf("ERROR: getting play status from dbus: %s", err.Error())
-				if playerPath != "" {
-					err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Play", 0).Store()
-					if err != nil {
-						log.Printf("ERROR: calling Play: %v", err)
-					}
+				err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Play", 0).Store()
+				if err != nil {
+					log.Printf("ERROR: calling Play: %v", err)
 				}
-			} else {
-				switch status {
-				case "playing":
-					if playerPath != "" {
-						err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Pause", 0).Store()
-						if err != nil {
-							log.Printf("ERROR: calling Pause: %v", err)
-						}
-					}
-				case "stopped":
-					if playerPath != "" {
-						err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Play", 0).Store()
-						if err != nil {
-							log.Printf("ERROR: calling Pause: %v", err)
-						}
-					}
-				case "paused":
-					if playerPath != "" {
-						err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Play", 0).Store()
-						if err != nil {
-							log.Printf("ERROR: calling Pause: %v", err)
-						}
-					}
-				default:
-					if playerPath != "" {
-						err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Play", 0).Store()
-						if err != nil {
-							log.Printf("ERROR: calling Play: %v", err)
-						}
-					}
-				}
+				break
 			}
-		case PlayControlPlay:
-			log.Print("Play")
-			if playerPath != "" {
+
+			switch status {
+			case "playing":
+				log.Printf("current status is '%s' calling DBus '%s'", status, "Pause")
+				err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Pause", 0).Store()
+				if err != nil {
+					log.Printf("ERROR: calling Pause: %v", err)
+				}
+			case "stopped":
+				log.Printf("current status is '%s' calling DBus '%s'", status, "Play")
+				err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Play", 0).Store()
+				if err != nil {
+					log.Printf("ERROR: calling Play: %v", err)
+				}
+			case "paused":
+				log.Printf("current status is '%s' calling DBus '%s'", status, "Play")
+				err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Play", 0).Store()
+				if err != nil {
+					log.Printf("ERROR: calling Play: %v", err)
+				}
+			default:
+				log.Printf("current status is '%s' calling DBus '%s'", status, "Play")
 				err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Play", 0).Store()
 				if err != nil {
 					log.Printf("ERROR: calling Play: %v", err)
 				}
 			}
-			return nil
+
+		case PlayControlPlay:
+			log.Print("Play")
+			err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Play", 0).Store()
+			if err != nil {
+				log.Printf("ERROR: calling Play: %v", err)
+			}
 		case PlayControlPause:
 			log.Print("Pause")
-			if playerPath != "" {
-				err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Pause", 0).Store()
-				if err != nil {
-					log.Printf("ERROR: calling Pause: %v", err)
-				}
+			err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Pause", 0).Store()
+			if err != nil {
+				log.Printf("ERROR: calling Pause: %v", err)
 			}
-			return nil
 		case PlayControlNextTrack, PlayControlNextChapter, PlayControlNext:
 			log.Print("Next")
-			if playerPath != "" {
-				err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Next", 0).Store()
-				if err != nil {
-					log.Printf("ERROR: calling Next: %v", err)
-				}
+			err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Next", 0).Store()
+			if err != nil {
+				log.Printf("ERROR: calling Next: %v", err)
 			}
-			return nil
 		case PlayControlPrevTrack, PlayControlPrevChapter, PlayControlPrev:
 			log.Print("Prev")
-			if playerPath != "" {
-				err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Previous", 0).Store()
-				if err != nil {
-					log.Printf("ERROR: calling Previous: %v", err)
-				}
+			err := conn.Object("org.bluez", playerPath).Call("org.bluez.MediaPlayer1.Previous", 0).Store()
+			if err != nil {
+				log.Printf("ERROR: calling Previous: %v", err)
 			}
-			ipod.Respond(req, tr, &ACK{Status: ACKStatus(PlayControlPrevTrack), CmdID: req.ID.CmdID()})
-			return nil
 		}
-		ipod.Respond(req, tr, ackSuccess(req))
+
+		if err != nil {
+			log.Printf("ERROR: PlayControl (%v): %s", payload.Cmd, err.Error())
+			ipod.Respond(req, tr, &ACK{Status: ACKStatusFailed, CmdID: req.ID.CmdID()})
+		} else {
+			// TODO: not sure if the ACK status should be 0 (success) or the actual control status?
+			log.Printf("Responding with ACKStatus: %v (%d)", ACKStatus(payload.Cmd), payload.Cmd)
+			// ipod.Respond(req, tr, &ACK{Status: ACKStatusSuccess, CmdID: req.ID.CmdID()})
+			ipod.Respond(req, tr, &ACK{Status: ACKStatus(payload.Cmd), CmdID: req.ID.CmdID()})
+		}
+
 	case *GetTrackArtworkTimes:
 		ipod.Respond(req, tr, &RetTrackArtworkTimes{})
 	case *GetShuffle:
