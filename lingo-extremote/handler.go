@@ -185,9 +185,15 @@ func HandleExtRemote(req *ipod.Command, tr ipod.CommandWriter, dev DeviceExtRemo
 			TrackPosition: 20 * 1000,
 		})
 	case *GetCurrentPlayingTrackIndex:
+		if playerPath == "" {
 		ipod.Respond(req, tr, &ReturnCurrentPlayingTrackIndex{
+				TrackIndex: -1,
+			})
+		} else {
+			ipod.Respond(req, tr, &ReturnCurrentPlayingTrackIndex{
 			TrackIndex: 0,
 		})
+		}
 	case *GetIndexedPlayingTrackTitle:
 		var title string
 		track, err := getTrackMetadata(conn, playerPath)
